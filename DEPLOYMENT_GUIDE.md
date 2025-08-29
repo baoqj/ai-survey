@@ -27,9 +27,10 @@
 ### 步骤3: 配置项目设置
 **Framework Preset**: Next.js
 **Root Directory**: `frontend` (重要！)
-**Build Command**: `npm run build`
-**Output Directory**: `.next`
-**Install Command**: `npm install`
+**Build Command**: `npm run build` (自动检测)
+**Output Directory**: `.next` (自动检测)
+**Install Command**: `npm install` (自动检测)
+**Node.js Version**: 18.x (推荐)
 
 ### 步骤4: 配置环境变量
 在Vercel项目设置中添加以下环境变量：
@@ -114,15 +115,18 @@ SENTRY_DSN=your-sentry-dsn
 ## 🔍 常见问题解决
 
 ### 问题1: 构建失败
-**可能原因**: 
+**可能原因**:
 - 依赖安装失败
 - TypeScript类型错误
 - 环境变量缺失
+- 根目录配置错误
 
 **解决方案**:
-1. 检查package.json依赖
-2. 修复TypeScript错误
-3. 确认所有必需环境变量已配置
+1. 确认根目录设置为 `frontend`
+2. 检查package.json依赖
+3. 修复TypeScript错误
+4. 确认所有必需环境变量已配置
+5. 查看Vercel构建日志获取详细错误信息
 
 ### 问题2: API调用失败
 **可能原因**:
@@ -135,7 +139,18 @@ SENTRY_DSN=your-sentry-dsn
 2. 检查环境变量拼写
 3. 查看Vercel函数日志
 
-### 问题3: 数据库连接失败
+### 问题3: 函数运行时错误
+**错误信息**: "Function Runtimes must have a valid version"
+**可能原因**:
+- vercel.json中函数运行时配置错误
+- 使用了过时的运行时版本格式
+
+**解决方案**:
+1. 删除或简化vercel.json中的functions配置
+2. 让Vercel自动检测Next.js API路由
+3. 如需自定义，使用正确的运行时格式如 `@vercel/node@3.0.7`
+
+### 问题4: 数据库连接失败
 **可能原因**:
 - Supabase配置错误
 - 网络策略限制
