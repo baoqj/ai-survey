@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "npm --prefix ../shared run build",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

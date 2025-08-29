@@ -20,14 +20,7 @@
     "emitDecoratorMetadata": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@/controllers/*": ["./src/controllers/*"],
-      "@/services/*": ["./src/services/*"],
-      "@/middleware/*": ["./src/middleware/*"],
-      "@/utils/*": ["./src/utils/*"],
-      "@/config/*": ["./src/config/*"],
-      "@/types/*": ["./src/types/*"],
-      "@/shared/*": ["../shared/src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src/**/*"],

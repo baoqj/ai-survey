@@ -1,8 +1,19 @@
 import axios, { AxiosInstance } from 'axios'
-import { LLMMessage, LLMRequest, LLMResponse, AIServiceConfig } from '@crs-check/shared'
-import { LLMService } from './index'
-import { logger } from '@/utils/logger'
-import { retry } from '@crs-check/shared'
+import { LLMMessage, LLMRequest, LLMResponse, AIServiceConfig, LLMService } from '../../types/llm'
+import { logger } from '../../utils/logger'
+
+// 简单的重试函数
+const retry = async <T>(fn: () => Promise<T>, retries: number = 3): Promise<T> => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn()
+    } catch (error) {
+      if (i === retries - 1) throw error
+      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)))
+    }
+  }
+  throw new Error('Retry failed')
+}
 
 export class QwenService implements LLMService {
   private client: AxiosInstance

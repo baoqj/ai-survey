@@ -1,16 +1,10 @@
-import { LLMMessage, LLMRequest, LLMResponse, AIServiceConfig } from '@crs-check/shared'
+import { LLMMessage, LLMRequest, LLMResponse, AIServiceConfig, LLMService } from '../../types/llm'
 import { HuggingFaceService } from './huggingface'
 import { OpenAIService } from './openai'
 import { DeepSeekService } from './deepseek'
 import { QwenService } from './qwen'
-import { logger } from '@/utils/logger'
-import { config } from '@/config'
-
-export interface LLMService {
-  generateCompletion(request: LLMRequest): Promise<LLMResponse>
-  generateAnalysis(prompt: string, context?: string): Promise<string>
-  isAvailable(): Promise<boolean>
-}
+import { logger } from '../../utils/logger'
+import { config } from '../../config'
 
 export class LLMServiceManager {
   private services: Map<string, LLMService> = new Map()
