@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "name": "survey-backend",
+  "builds": [
+    {
+      "src": "api/**/*.ts",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": "prisma/**"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    }
+  ],
+  "functions": {
+    "api/**/*.ts": {
+      "runtime": "nodejs20.x"
+    }
+  },
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "installCommand": "npm install && npx prisma generate",
+  "buildCommand": "npx prisma generate"
+}

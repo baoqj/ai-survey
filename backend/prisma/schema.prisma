@@ -1,0 +1,343 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  phone     String?  @unique
+  password_hash String
+  nickname  String
+  avatar_url String?
+  user_type UserType @default(CONSUMER)
+  status    UserStatus @default(ACTIVE)
+  points    Int      @default(0)
+  level     Int      @default(1)
+  email_verified Boolean @default(false)
+  phone_verified Boolean @default(false)
+  last_login_at DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  surveys   Survey[]
+  responses Response[]
+  profile   UserProfile?
+  tags      UserTag[]
+  point_transactions PointTransaction[]
+  template_purchases TemplatePurchase[]
+
+  @@map("users")
+}
+
+enum UserType {
+  CONSUMER
+  BUSINESS
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BANNED
+}
+
+model UserProfile {
+  id        String   @id @default(cuid())
+  user_id   String   @unique
+  user      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  age       Int?
+  gender    Gender?
+  occupation String?
+  education String?
+  location  String?
+  interests Json?
+  behavior_tags Json?
+  preferences Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_profiles")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+model UserTag {
+  id        String   @id @default(cuid())
+  user_id   String
+  user      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  tag_name  String
+  tag_value String?
+  confidence Float
+  source    TagSource
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_tags")
+}
+
+enum TagSource {
+  SYSTEM
+  MANUAL
+  AI
+}
+
+model Survey {
+  id          String        @id @default(cuid())
+  creator_id  String?
+  creator     User?         @relation(fields: [creator_id], references: [id], onDelete: SetNull)
+  title       String
+  description String?
+  questions   Json          // Store questions as JSON for flexibility
+  config      Json?         // Survey configuration
+  status      SurveyStatus  @default(DRAFT)
+  access_type AccessType    @default(PUBLIC)
+  access_code String?
+  max_responses Int?
+  response_count Int        @default(0)
+  view_count  Int          @default(0)
+  seo_config  Json?
+  ai_generated Boolean     @default(false)
+  template_id String?
+  category    String?
+  tags        String[]
+  published_at DateTime?
+  expires_at  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  // Relations
+  responses   Response[]
+  embeddings  SurveyEmbedding[]
+
+  @@index([creator_id])
+  @@index([status])
+  @@index([category])
+  @@index([published_at])
+  @@map("surveys")
+}
+
+enum SurveyStatus {
+  DRAFT
+  PUBLISHED
+  PAUSED
+  CLOSED
+}
+
+enum AccessType {
+  PUBLIC
+  PRIVATE
+  PASSWORD
+  INVITE
+}
+
+model SurveyTemplate {
+  id          String   @id @default(cuid())
+  creator_id  String
+  title       String
+  description String?
+  questions   Json
+  category    String
+  tags        String[]
+  price       Int      @default(0)
+  is_public   Boolean  @default(true)
+  usage_count Int      @default(0)
+  rating      Float    @default(0)
+  rating_count Int     @default(0)
+  status      TemplateStatus @default(ACTIVE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  purchases   TemplatePurchase[]
+
+  @@index([creator_id])
+  @@index([category])
+  @@index([price])
+  @@index([rating])
+  @@map("survey_templates")
+}
+
+enum TemplateStatus {
+  ACTIVE
+  INACTIVE
+  BANNED
+}
+
+model Response {
+  id          String    @id @default(cuid())
+  survey_id   String
+  survey      Survey    @relation(fields: [survey_id], references: [id], onDelete: Cascade)
+  respondent_id String?
+  respondent  User?     @relation(fields: [respondent_id], references: [id], onDelete: SetNull)
+  answers     Json
+  metadata    Json?     // IP, User-Agent, device info
+  ai_analysis Json?     // AI analysis results
+  quality_score QualityScore?
+  completion_rate Float?
+  time_spent  Int?      // seconds
+  status      ResponseStatus @default(COMPLETED)
+  is_anonymous Boolean  @default(false)
+  started_at  DateTime?
+  completed_at DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  analytics   ResponseAnalytics[]
+
+  @@index([survey_id])
+  @@index([respondent_id])
+  @@index([quality_score])
+  @@index([completed_at])
+  @@map("responses")
+}
+
+enum QualityScore {
+  RED
+  AMBER
+  GREEN
+}
+
+enum ResponseStatus {
+  DRAFT
+  COMPLETED
+  INVALID
+}
+
+model ResponseAnalytics {
+  id          String   @id @default(cuid())
+  response_id String
+  response    Response @relation(fields: [response_id], references: [id], onDelete: Cascade)
+  analysis_type String // 'sentiment', 'keywords', 'quality'
+  analysis_result Json
+  confidence  Float
+  model_version String?
+  createdAt   DateTime @default(now())
+
+  @@unique([response_id, analysis_type])
+  @@index([response_id])
+  @@index([analysis_type])
+  @@map("response_analytics")
+}
+
+model PointTransaction {
+  id          String   @id @default(cuid())
+  user_id     String
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  type        TransactionType
+  amount      Int
+  balance_after Int
+  source      String   // 'survey_complete', 'referral', 'purchase'
+  reference_id String? // related business ID
+  reference_type String? // 'survey', 'template', 'referral'
+  description String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([user_id])
+  @@index([type])
+  @@index([source])
+  @@index([createdAt])
+  @@map("point_transactions")
+}
+
+enum TransactionType {
+  EARN
+  SPEND
+  TRANSFER
+  REFUND
+}
+
+model PointRule {
+  id          String   @id @default(cuid())
+  rule_name   String   @unique
+  rule_type   RuleType
+  action      String   // 'survey_complete', 'daily_login'
+  points      Int
+  conditions  Json?
+  is_active   Boolean  @default(true)
+  daily_limit Int?
+  total_limit Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([action])
+  @@index([is_active])
+  @@map("point_rules")
+}
+
+enum RuleType {
+  EARN
+  SPEND
+}
+
+model TemplatePurchase {
+  id          String   @id @default(cuid())
+  buyer_id    String
+  buyer       User     @relation(fields: [buyer_id], references: [id], onDelete: Cascade)
+  template_id String
+  template    SurveyTemplate @relation(fields: [template_id], references: [id], onDelete: Cascade)
+  price       Int
+  payment_method PaymentMethod @default(POINTS)
+  status      PurchaseStatus @default(COMPLETED)
+  createdAt   DateTime @default(now())
+
+  @@unique([buyer_id, template_id])
+  @@index([buyer_id])
+  @@index([template_id])
+  @@index([createdAt])
+  @@map("template_purchases")
+}
+
+enum PaymentMethod {
+  POINTS
+  CASH
+}
+
+enum PurchaseStatus {
+  PENDING
+  COMPLETED
+  REFUNDED
+}
+
+model SurveyEmbedding {
+  id          String   @id @default(cuid())
+  survey_id   String
+  survey      Survey   @relation(fields: [survey_id], references: [id], onDelete: Cascade)
+  content_type String  // 'title', 'description', 'questions'
+  content     String
+  embedding   String   // Store as string, convert to vector when needed
+  model_name  String   @default("text-embedding-3-large")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([survey_id])
+  @@index([content_type])
+  @@map("survey_embeddings")
+}
+
+model UserEmbedding {
+  id          String   @id @default(cuid())
+  user_id     String
+  embedding_type String // 'profile', 'behavior', 'preferences'
+  embedding   String   // Store as string, convert to vector when needed
+  model_name  String   @default("text-embedding-3-large")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([user_id, embedding_type])
+  @@index([user_id])
+  @@index([embedding_type])
+  @@map("user_embeddings")
+}
