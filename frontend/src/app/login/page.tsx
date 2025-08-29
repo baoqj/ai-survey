@@ -7,9 +7,13 @@ import { motion } from 'framer-motion'
 import { Eye, EyeOff, Mail, Phone, ArrowRight, Github, Chrome } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { authAPI } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
 
 export default function LoginPage() {
   const router = useRouter()
+  const { login } = useAuth()
+
   const [loginType, setLoginType] = useState<'email' | 'phone'>('email')
   const [formData, setFormData] = useState({
     email: '',
@@ -21,6 +25,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [usePasswordLogin, setUsePasswordLogin] = useState(true)
+  const [error, setError] = useState('')
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target
@@ -32,17 +37,44 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
     setIsLoading(true)
-    
-    // TODO: 实现登录逻辑
-    console.log('登录数据:', formData)
-    
-    // 模拟API调用
-    setTimeout(() => {
+
+    try {
+      const loginData: any = {}
+
+      // 根据登录类型设置数据
+      if (loginType === 'email') {
+        loginData.email = formData.email
+      } else {
+        loginData.phone = formData.phone
+      }
+
+      // 根据登录方式设置密码或验证码
+      if (usePasswordLogin) {
+        loginData.password = formData.password
+      } else {
+        loginData.verificationCode = formData.verificationCode
+      }
+
+      const response = await authAPI.login(loginData)
+
+      if (response.success) {
+        // 登录成功
+        login(response.user, response.token)
+
+        // 根据用户类型跳转
+        if (response.user.userType === 'BUSINESS' || response.user.userType === 'ADMIN') {
+          router.push('/dashboard')
+        } else {
+          router.push('/')
+        }
+      }
+    } catch (error: any) {
+      setError(error.message || '登录失败，请检查您的凭据')
+    } finally {
       setIsLoading(false)
-      // 根据用户类型跳转到不同页面
-      router.push('/dashboard')
-    }, 2000)
+    }
   }
 
   const handleSendCode = () => {
@@ -75,6 +107,12 @@ export default function LoginPage() {
         </div>
 
         <Card className="p-6">
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+
           {/* 登录方式切换 */}
           <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
             <button

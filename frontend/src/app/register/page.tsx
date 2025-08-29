@@ -110,19 +110,25 @@ export default function RegisterPage() {
         </div>
 
         <Card className="p-6">
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* 用户类型选择 */}
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">账户类型</label>
               <div className="grid grid-cols-2 gap-3">
                 <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
-                  formData.userType === 'consumer' ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:bg-gray-50'
+                  formData.userType === 'CONSUMER' ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:bg-gray-50'
                 }`}>
                   <input
                     type="radio"
                     name="userType"
-                    value="consumer"
-                    checked={formData.userType === 'consumer'}
+                    value="CONSUMER"
+                    checked={formData.userType === 'CONSUMER'}
                     onChange={handleInputChange}
                     className="sr-only"
                   />
@@ -130,13 +136,13 @@ export default function RegisterPage() {
                   <span className="text-sm font-medium">个人用户</span>
                 </label>
                 <label className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
-                  formData.userType === 'business' ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:bg-gray-50'
+                  formData.userType === 'BUSINESS' ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:bg-gray-50'
                 }`}>
                   <input
                     type="radio"
                     name="userType"
-                    value="business"
-                    checked={formData.userType === 'business'}
+                    value="BUSINESS"
+                    checked={formData.userType === 'BUSINESS'}
                     onChange={handleInputChange}
                     className="sr-only"
                   />
@@ -189,7 +195,7 @@ export default function RegisterPage() {
             {/* 昵称 */}
             <div className="space-y-2">
               <label htmlFor="nickname" className="text-sm font-medium text-gray-700">
-                {formData.userType === 'business' ? '联系人姓名' : '昵称'} <span className="text-red-500">*</span>
+                {formData.userType === 'BUSINESS' ? '联系人姓名' : '昵称'} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -198,13 +204,13 @@ export default function RegisterPage() {
                 value={formData.nickname}
                 onChange={handleInputChange}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                placeholder={formData.userType === 'business' ? '请输入联系人姓名' : '请输入昵称'}
+                placeholder={formData.userType === 'BUSINESS' ? '请输入联系人姓名' : '请输入昵称'}
                 required
               />
             </div>
 
             {/* 企业名称（仅企业用户显示） */}
-            {formData.userType === 'business' && (
+            {formData.userType === 'BUSINESS' && (
               <div className="space-y-2">
                 <label htmlFor="companyName" className="text-sm font-medium text-gray-700">
                   企业名称 <span className="text-red-500">*</span>

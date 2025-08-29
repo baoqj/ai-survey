@@ -4,11 +4,7 @@
     "api/**/*.ts": {
       "runtime": "nodejs20.x",
       "maxDuration": 30,
-      "memory": 1024,
-      "includeFiles": [
-        "prisma/**",
-        "node_modules/.prisma/**"
-      ]
+      "memory": 1024
     }
   },
   "crons": [
