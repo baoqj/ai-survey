@@ -2,14 +2,20 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Eye, EyeOff, Mail, Phone, User, Building, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { authAPI } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
 
 export default function RegisterPage() {
+  const router = useRouter()
+  const { login } = useAuth()
+
   const [formData, setFormData] = useState({
-    userType: 'consumer', // consumer, business
+    userType: 'CONSUMER' as 'CONSUMER' | 'BUSINESS',
     email: '',
     phone: '',
     password: '',
@@ -22,6 +28,7 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target
@@ -33,16 +40,55 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
+
+    // 表单验证
+    if (formData.password !== formData.confirmPassword) {
+      setError('两次输入的密码不一致')
+      return
+    }
+
+    if (formData.password.length < 8) {
+      setError('密码长度至少8位')
+      return
+    }
+
+    if (!formData.agreeTerms) {
+      setError('请同意用户协议和隐私政策')
+      return
+    }
+
     setIsLoading(true)
-    
-    // TODO: 实现注册逻辑
-    console.log('注册数据:', formData)
-    
-    // 模拟API调用
-    setTimeout(() => {
+
+    try {
+      const registerData = {
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+        nickname: formData.nickname,
+        userType: formData.userType,
+        ...(formData.userType === 'BUSINESS' && { companyName: formData.companyName }),
+        ...(formData.inviteCode && { inviteCode: formData.inviteCode }),
+      }
+
+      const response = await authAPI.register(registerData)
+
+      if (response.success) {
+        // 注册成功，自动登录
+        login(response.user, response.token)
+
+        // 根据用户类型跳转
+        if (formData.userType === 'BUSINESS') {
+          router.push('/dashboard')
+        } else {
+          router.push('/')
+        }
+      }
+    } catch (error: any) {
+      setError(error.message || '注册失败，请重试')
+    } finally {
       setIsLoading(false)
-      alert('注册成功！请查收验证邮件。')
-    }, 2000)
+    }
   }
 
   return (
