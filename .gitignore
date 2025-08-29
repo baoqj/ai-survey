@@ -1,3 +1,7 @@
+prompt/
+
+*.md
+
 # Dependencies
 node_modules/
 npm-debug.log*
@@ -11,6 +15,7 @@ lerna-debug.log*
 out/
 build/
 dist/
+
 
 # Production builds
 frontend/.next/
