@@ -1,11 +1,14 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Navigation } from '@/components/navigation'
+import { surveyAPI } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
 
 interface Question {
   id: string
@@ -15,33 +18,84 @@ interface Question {
   required: boolean
 }
 
-const sampleQuestions: Question[] = [
-  {
-    id: '1',
-    type: 'single',
-    title: '您对我们的产品整体满意度如何？',
-    options: ['非常满意', '满意', '一般', '不满意', '非常不满意'],
-    required: true,
-  },
-  {
-    id: '2',
-    type: 'multiple',
-    title: '您最看重产品的哪些方面？（可多选）',
-    options: ['功能性', '易用性', '价格', '客户服务', '品牌声誉'],
-    required: true,
-  },
-  {
-    id: '3',
-    type: 'text',
-    title: '您还有什么建议或意见吗？',
-    required: false,
-  },
-]
-
 export default function SurveyPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { user } = useAuth()
+
+  const [surveyData, setSurveyData] = useState<any>(null)
   const [currentQuestion, setCurrentQuestion] = useState(0)
   const [answers, setAnswers] = useState<Record<string, any>>({})
   const [isCompleted, setIsCompleted] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState('')
+
+  // 获取问卷ID（从URL参数或预览数据）
+  const surveyId = searchParams.get('id')
+  const isPreview = searchParams.get('preview') === 'true'
+
+  // 获取问卷数据
+  useEffect(() => {
+    const fetchSurveyData = async () => {
+      try {
+        setIsLoading(true)
+
+        if (isPreview) {
+          // 预览模式：从sessionStorage获取数据
+          const previewData = sessionStorage.getItem('preview_survey')
+          if (previewData) {
+            setSurveyData(JSON.parse(previewData))
+          } else {
+            throw new Error('预览数据不存在')
+          }
+        } else if (surveyId) {
+          // 正常模式：从API获取问卷数据
+          const response = await surveyAPI.getSurvey(surveyId)
+          if (response.success) {
+            setSurveyData(response.data)
+          } else {
+            throw new Error('问卷不存在或已关闭')
+          }
+        } else {
+          // 使用示例问卷数据
+          setSurveyData({
+            id: 'sample',
+            title: '产品满意度调研',
+            description: '我们希望了解您对我们产品的真实感受',
+            questions: [
+              {
+                id: '1',
+                type: 'single',
+                title: '您对我们的产品整体满意度如何？',
+                options: ['非常满意', '满意', '一般', '不满意', '非常不满意'],
+                required: true,
+              },
+              {
+                id: '2',
+                type: 'multiple',
+                title: '您最看重产品的哪些方面？（可多选）',
+                options: ['功能性', '易用性', '价格', '客户服务', '品牌声誉'],
+                required: true,
+              },
+              {
+                id: '3',
+                type: 'text',
+                title: '您还有什么建议或意见吗？',
+                required: false,
+              },
+            ]
+          })
+        }
+      } catch (error: any) {
+        setError(error.message || '获取问卷数据失败')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchSurveyData()
+  }, [surveyId, isPreview])
 
   const handleAnswer = (questionId: string, answer: any) => {
     setAnswers(prev => ({
@@ -51,7 +105,8 @@ export default function SurveyPage() {
   }
 
   const handleNext = () => {
-    if (currentQuestion < sampleQuestions.length - 1) {
+    const questions = surveyData?.questions || []
+    if (currentQuestion < questions.length - 1) {
       setCurrentQuestion(prev => prev + 1)
     } else {
       setIsCompleted(true)
@@ -64,9 +119,85 @@ export default function SurveyPage() {
     }
   }
 
-  const handleSubmit = () => {
-    console.log('提交答案:', answers)
-    alert('问卷提交成功！感谢您的参与。')
+  const handleSubmit = async () => {
+    if (isPreview) {
+      alert('这是预览模式，答案不会被保存')
+      return
+    }
+
+    if (!surveyData?.id || surveyData.id === 'sample') {
+      alert('这是示例问卷，答案不会被保存')
+      return
+    }
+
+    setIsSubmitting(true)
+    setError('')
+
+    try {
+      const responseData = {
+        answers,
+        isAnonymous: !user // 如果用户未登录，则为匿名提交
+      }
+
+      const response = await surveyAPI.submitResponse(surveyData.id, responseData)
+
+      if (response.success) {
+        alert('问卷提交成功！感谢您的参与。')
+        // 可以跳转到感谢页面或返回首页
+        setTimeout(() => {
+          router.push('/')
+        }, 2000)
+      }
+    } catch (error: any) {
+      setError(error.message || '提交失败，请重试')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // 加载状态
+  if (isLoading) {
+    return (
+      <div>
+        <Navigation showHomeButton={true} title="问卷调研" />
+        <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-100 flex items-center justify-center p-4">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">加载问卷中...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // 错误状态
+  if (error) {
+    return (
+      <div>
+        <Navigation showHomeButton={true} title="问卷调研" />
+        <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-100 flex items-center justify-center p-4">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>重新加载</Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // 没有问卷数据
+  if (!surveyData) {
+    return (
+      <div>
+        <Navigation showHomeButton={true} title="问卷调研" />
+        <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-100 flex items-center justify-center p-4">
+          <div className="text-center">
+            <p className="text-gray-600 mb-4">问卷不存在</p>
+            <Button onClick={() => router.push('/')}>返回首页</Button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (isCompleted) {
@@ -89,8 +220,12 @@ export default function SurveyPage() {
               <p className="text-gray-600 mb-6">
                 感谢您的参与，您的反馈对我们非常重要。
               </p>
-              <Button onClick={handleSubmit} className="w-full">
-                提交问卷
+              <Button
+                onClick={handleSubmit}
+                className="w-full"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? '提交中...' : '提交问卷'}
               </Button>
             </Card>
           </motion.div>
@@ -99,8 +234,9 @@ export default function SurveyPage() {
     )
   }
 
-  const question = sampleQuestions[currentQuestion]
-  const progress = ((currentQuestion + 1) / sampleQuestions.length) * 100
+  const questions = surveyData?.questions || []
+  const question = questions[currentQuestion]
+  const progress = questions.length > 0 ? ((currentQuestion + 1) / questions.length) * 100 : 0
 
   return (
     <div>
@@ -110,7 +246,7 @@ export default function SurveyPage() {
           <div className="mb-8">
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm text-gray-600">
-                问题 {currentQuestion + 1} / {sampleQuestions.length}
+                问题 {currentQuestion + 1} / {questions.length}
               </span>
               <span className="text-sm text-gray-600">
                 {Math.round(progress)}% 完成
@@ -212,7 +348,7 @@ export default function SurveyPage() {
             </Button>
 
             <Button onClick={handleNext}>
-              {currentQuestion === sampleQuestions.length - 1 ? '完成' : '下一题'}
+              {currentQuestion === questions.length - 1 ? '完成' : '下一题'}
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>

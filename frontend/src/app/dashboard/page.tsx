@@ -1,13 +1,14 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { 
-  BarChart3, 
-  Users, 
-  FileText, 
-  TrendingUp, 
-  Plus, 
+import {
+  BarChart3,
+  Users,
+  FileText,
+  TrendingUp,
+  Plus,
   Eye,
   Download,
   Calendar,
@@ -18,68 +19,88 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Navigation } from '@/components/navigation'
+import { dashboardAPI, surveyAPI } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
 
-// 模拟数据
-const dashboardData = {
-  overview: {
-    totalSurveys: 24,
-    totalResponses: 1847,
-    activeUsers: 342,
-    completionRate: 78.5
-  },
-  recentSurveys: [
-    {
-      id: '1',
-      title: '产品满意度调研',
-      status: 'active',
-      responses: 156,
-      completionRate: 82.3,
-      createdAt: '2024-08-25',
-      lastResponse: '2小时前'
-    },
-    {
-      id: '2', 
-      title: '用户体验反馈收集',
-      status: 'active',
-      responses: 89,
-      completionRate: 75.6,
-      createdAt: '2024-08-23',
-      lastResponse: '1天前'
-    },
-    {
-      id: '3',
-      title: '市场调研问卷',
-      status: 'draft',
-      responses: 0,
-      completionRate: 0,
-      createdAt: '2024-08-22',
-      lastResponse: '从未'
-    }
-  ],
-  aiInsights: [
-    {
-      type: 'trend',
-      title: '用户满意度呈上升趋势',
-      description: '过去30天内，用户满意度评分平均提升了12%，主要体现在产品功能和客户服务方面。',
-      confidence: 'high'
-    },
-    {
-      type: 'anomaly',
-      title: '发现异常回答模式',
-      description: '检测到3份问卷存在可能的机器人回答，建议启用验证码功能。',
-      confidence: 'medium'
-    },
-    {
-      type: 'suggestion',
-      title: '优化建议',
-      description: '建议在问卷中增加开放性问题，以获得更深入的用户反馈。',
-      confidence: 'high'
-    }
-  ]
-}
+  // 如果正在加载或没有认证，显示加载状态
+  if (isLoading || !isAuthenticated) {
+    return (
+      <div>
+        <Navigation showHomeButton={true} title="数据仪表板" />
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">加载中...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // 如果有错误，显示错误信息
+  if (error) {
+    return (
+      <div>
+        <Navigation showHomeButton={true} title="数据仪表板" />
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button onClick={() => window.location.reload()}>重试</Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
 export default function DashboardPage() {
+  const router = useRouter()
+  const { user, isAuthenticated } = useAuth()
+
   const [timeRange, setTimeRange] = useState('30d')
+  const [dashboardData, setDashboardData] = useState<any>(null)
+  const [recentSurveys, setRecentSurveys] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  // 检查用户权限
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push('/login')
+      return
+    }
+
+    if (user?.userType !== 'BUSINESS' && user?.userType !== 'ADMIN') {
+      router.push('/')
+      return
+    }
+  }, [isAuthenticated, user, router])
+
+  // 获取仪表板数据
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (!isAuthenticated) return
+
+      try {
+        setIsLoading(true)
+
+        // 并行获取数据
+        const [statsResponse, surveysResponse] = await Promise.all([
+          dashboardAPI.getStats(),
+          surveyAPI.getSurveys({ limit: 5 })
+        ])
+
+        setDashboardData(statsResponse.data)
+        setRecentSurveys(surveysResponse.data.surveys || [])
+      } catch (error: any) {
+        setError(error.message || '获取数据失败')
+        console.error('Dashboard data fetch error:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchDashboardData()
+  }, [isAuthenticated, timeRange])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -147,7 +168,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">问卷总数</p>
-                    <p className="text-2xl font-bold text-gray-900">{dashboardData.overview.totalSurveys}</p>
+                    <p className="text-2xl font-bold text-gray-900">{dashboardData?.totalSurveys || 0}</p>
                   </div>
                   <div className="h-12 w-12 bg-primary-100 rounded-lg flex items-center justify-center">
                     <FileText className="h-6 w-6 text-primary-600" />
@@ -170,7 +191,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">总回答数</p>
-                    <p className="text-2xl font-bold text-gray-900">{dashboardData.overview.totalResponses.toLocaleString()}</p>
+                    <p className="text-2xl font-bold text-gray-900">{(dashboardData?.totalResponses || 0).toLocaleString()}</p>
                   </div>
                   <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
                     <BarChart3 className="h-6 w-6 text-green-600" />
@@ -193,7 +214,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">活跃用户</p>
-                    <p className="text-2xl font-bold text-gray-900">{dashboardData.overview.activeUsers}</p>
+                    <p className="text-2xl font-bold text-gray-900">{dashboardData?.activeUsers || 0}</p>
                   </div>
                   <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
                     <Users className="h-6 w-6 text-blue-600" />
@@ -216,7 +237,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">完成率</p>
-                    <p className="text-2xl font-bold text-gray-900">{dashboardData.overview.completionRate}%</p>
+                    <p className="text-2xl font-bold text-gray-900">{(dashboardData?.completionRate || 0).toFixed(1)}%</p>
                   </div>
                   <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
                     <Target className="h-6 w-6 text-orange-600" />
@@ -243,7 +264,7 @@ export default function DashboardPage() {
                 </div>
                 
                 <div className="space-y-4">
-                  {dashboardData.recentSurveys.map((survey, index) => (
+                  {recentSurveys.map((survey, index) => (
                     <motion.div
                       key={survey.id}
                       initial={{ opacity: 0, x: -20 }}
@@ -261,15 +282,15 @@ export default function DashboardPage() {
                         <div className="flex items-center space-x-4 text-sm text-gray-500">
                           <span className="flex items-center">
                             <Users className="h-4 w-4 mr-1" />
-                            {survey.responses} 回答
+                            {survey.responseCount || 0} 回答
                           </span>
                           <span className="flex items-center">
                             <Target className="h-4 w-4 mr-1" />
-                            {survey.completionRate}% 完成率
+                            {((survey.responseCount || 0) > 0 ? ((survey.responseCount || 0) / (survey.targetCount || 100) * 100) : 0).toFixed(1)}% 完成率
                           </span>
                           <span className="flex items-center">
                             <Clock className="h-4 w-4 mr-1" />
-                            {survey.lastResponse}
+                            {survey.updatedAt ? new Date(survey.updatedAt).toLocaleDateString() : '从未'}
                           </span>
                         </div>
                       </div>
@@ -298,7 +319,7 @@ export default function DashboardPage() {
                 </div>
                 
                 <div className="space-y-4">
-                  {dashboardData.aiInsights.map((insight, index) => (
+                  {(dashboardData?.aiInsights || []).map((insight: any, index: number) => (
                     <motion.div
                       key={index}
                       initial={{ opacity: 0, y: 20 }}

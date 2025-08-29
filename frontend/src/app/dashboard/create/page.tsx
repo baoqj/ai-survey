@@ -1,13 +1,14 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { 
-  Wand2, 
-  FileText, 
-  Sparkles, 
-  Plus, 
-  Trash2, 
+import {
+  Wand2,
+  FileText,
+  Sparkles,
+  Plus,
+  Trash2,
   GripVertical,
   Save,
   Eye,
@@ -17,6 +18,8 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Navigation } from '@/components/navigation'
+import { aiAPI, surveyAPI, templateAPI } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
 
 interface Question {
   id: string
@@ -27,6 +30,9 @@ interface Question {
 }
 
 export default function CreateSurveyPage() {
+  const router = useRouter()
+  const { user, isAuthenticated } = useAuth()
+
   const [surveyData, setSurveyData] = useState({
     title: '',
     description: '',
@@ -36,48 +42,75 @@ export default function CreateSurveyPage() {
   const [aiPrompt, setAiPrompt] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [activeTab, setActiveTab] = useState<'ai' | 'manual' | 'template'>('ai')
+  const [templates, setTemplates] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  // 检查用户权限
+  useEffect(() => {
+    if (!isAuthenticated) {
+      router.push('/login')
+      return
+    }
+
+    if (user?.userType !== 'BUSINESS' && user?.userType !== 'ADMIN') {
+      router.push('/')
+      return
+    }
+  }, [isAuthenticated, user, router])
+
+  // 获取模板列表
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      if (activeTab === 'template') {
+        try {
+          const response = await templateAPI.getTemplates({ limit: 10 })
+          setTemplates(response.data.templates || [])
+        } catch (error) {
+          console.error('获取模板失败:', error)
+        }
+      }
+    }
+
+    fetchTemplates()
+  }, [activeTab])
 
   const handleAIGenerate = async () => {
     if (!aiPrompt.trim()) return
-    
+
     setIsGenerating(true)
-    
-    // TODO: 调用AI生成API
-    console.log('AI生成问卷:', aiPrompt)
-    
-    // 模拟AI生成结果
-    setTimeout(() => {
-      const generatedQuestions: Question[] = [
-        {
-          id: '1',
-          type: 'single',
-          title: '您对我们的产品整体满意度如何？',
-          options: ['非常满意', '满意', '一般', '不满意', '非常不满意'],
-          required: true
-        },
-        {
-          id: '2',
-          type: 'multiple',
-          title: '您最看重产品的哪些方面？（可多选）',
-          options: ['功能性', '易用性', '价格', '客户服务', '品牌声誉'],
-          required: true
-        },
-        {
-          id: '3',
-          type: 'text',
-          title: '您还有什么建议或意见吗？',
-          required: false
-        }
-      ]
-      
-      setSurveyData(prev => ({
-        ...prev,
-        title: '产品满意度调研问卷',
-        description: '我们希望了解您对我们产品的真实感受，您的反馈对我们非常重要。',
-        questions: generatedQuestions
-      }))
+    setError('')
+
+    try {
+      const response = await aiAPI.generateSurvey(aiPrompt)
+
+      if (response.success && response.data) {
+        const { title, description, questions } = response.data
+
+        // 转换AI生成的问题格式
+        const formattedQuestions: Question[] = questions.map((q: any, index: number) => ({
+          id: (index + 1).toString(),
+          type: q.type || 'single',
+          title: q.title || q.question,
+          options: q.options || [],
+          required: q.required !== false
+        }))
+
+        setSurveyData(prev => ({
+          ...prev,
+          title: title || '智能生成问卷',
+          description: description || '基于AI智能生成的问卷',
+          questions: formattedQuestions
+        }))
+      } else {
+        throw new Error('AI生成失败，请重试')
+      }
+    } catch (error: any) {
+      setError(error.message || 'AI生成失败，请检查网络连接后重试')
+      console.error('AI生成错误:', error)
+    } finally {
       setIsGenerating(false)
-    }, 3000)
+    }
   }
 
   const addQuestion = () => {
@@ -110,16 +143,56 @@ export default function CreateSurveyPage() {
     }))
   }
 
-  const handleSave = () => {
-    // TODO: 保存问卷逻辑
-    console.log('保存问卷:', surveyData)
-    alert('问卷已保存为草稿！')
+  const handleSave = async (isDraft = true) => {
+    if (!surveyData.title.trim()) {
+      setError('请输入问卷标题')
+      return
+    }
+
+    if (surveyData.questions.length === 0) {
+      setError('请至少添加一个问题')
+      return
+    }
+
+    setIsLoading(true)
+    setError('')
+
+    try {
+      const surveyPayload = {
+        title: surveyData.title,
+        description: surveyData.description,
+        questions: surveyData.questions,
+        category: surveyData.category || 'general',
+        accessType: 'PUBLIC' as const,
+        status: isDraft ? 'DRAFT' : 'ACTIVE'
+      }
+
+      const response = await surveyAPI.createSurvey(surveyPayload)
+
+      if (response.success) {
+        alert(isDraft ? '问卷已保存为草稿！' : '问卷已发布成功！')
+        router.push('/dashboard')
+      }
+    } catch (error: any) {
+      setError(error.message || '保存失败，请重试')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handlePreview = () => {
-    // TODO: 预览问卷逻辑
-    console.log('预览问卷:', surveyData)
+    if (surveyData.questions.length === 0) {
+      setError('请先添加问题再预览')
+      return
+    }
+
+    // 将问卷数据存储到sessionStorage供预览页面使用
+    sessionStorage.setItem('preview_survey', JSON.stringify(surveyData))
     window.open('/survey/preview', '_blank')
+  }
+
+  const handlePublish = () => {
+    handleSave(false)
   }
 
   return (
@@ -136,6 +209,12 @@ export default function CreateSurveyPage() {
 
           {/* 创建方式选择 */}
           <Card className="p-6 mb-6">
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
+
             <div className="flex space-x-1 bg-gray-100 rounded-lg p-1 mb-6">
               <button
                 onClick={() => setActiveTab('ai')}
@@ -222,13 +301,40 @@ export default function CreateSurveyPage() {
 
             {/* 模板选择界面 */}
             {activeTab === 'template' && (
-              <div className="text-center py-8">
-                <Sparkles className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">选择问卷模板</h3>
-                <p className="text-gray-600 mb-4">从专业模板开始，快速创建问卷</p>
-                <Button variant="outline">
-                  浏览模板库
-                </Button>
+              <div>
+                {templates.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {templates.map((template) => (
+                      <div
+                        key={template.id}
+                        className="border border-gray-200 rounded-lg p-4 hover:border-primary-300 cursor-pointer transition-colors"
+                        onClick={() => {
+                          // 使用模板数据填充表单
+                          setSurveyData({
+                            title: template.title,
+                            description: template.description,
+                            category: template.category,
+                            questions: template.questions || []
+                          })
+                          setActiveTab('manual')
+                        }}
+                      >
+                        <h4 className="font-medium text-gray-900 mb-2">{template.title}</h4>
+                        <p className="text-sm text-gray-600 mb-3">{template.description}</p>
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <span>{template.category}</span>
+                          <span>{template.questions?.length || 0} 个问题</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Sparkles className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">暂无可用模板</h3>
+                    <p className="text-gray-600 mb-4">模板正在准备中，请稍后再试</p>
+                  </div>
+                )}
               </div>
             )}
           </Card>
@@ -385,17 +491,24 @@ export default function CreateSurveyPage() {
                 返回
               </Button>
               <div className="flex space-x-3">
-                <Button variant="outline" onClick={handleSave}>
+                <Button
+                  variant="outline"
+                  onClick={() => handleSave(true)}
+                  disabled={isLoading}
+                >
                   <Save className="h-4 w-4 mr-2" />
-                  保存草稿
+                  {isLoading ? '保存中...' : '保存草稿'}
                 </Button>
                 <Button variant="outline" onClick={handlePreview}>
                   <Eye className="h-4 w-4 mr-2" />
                   预览
                 </Button>
-                <Button>
+                <Button
+                  onClick={handlePublish}
+                  disabled={isLoading}
+                >
                   <Settings className="h-4 w-4 mr-2" />
-                  发布设置
+                  {isLoading ? '发布中...' : '立即发布'}
                 </Button>
               </div>
             </div>
