@@ -11,26 +11,59 @@
 - **数据库**: Supabase (PostgreSQL)
 - **AI服务**: 支持多种LLM (OpenAI, DeepSeek, Qwen等)
 
-## 🚀 Vercel部署步骤
+## 🚀 Vercel部署步骤（前后端分离）
 
-### 步骤1: 登录Vercel
+### 步骤1: 部署后端API服务
+
+#### 1.1 创建后端项目
 1. 访问 https://vercel.com
 2. 使用GitHub账号登录
-3. 授权Vercel访问您的GitHub仓库
+3. 点击 "New Project"
+4. 选择 `baoqj/ai-survey` 仓库
+5. 点击 "Import"
 
-### 步骤2: 导入项目
-1. 点击 "New Project"
-2. 选择 "Import Git Repository"
-3. 找到并选择 `baoqj/ai-survey` 仓库
-4. 点击 "Import"
+#### 1.2 配置后端项目设置
+- **Project Name**: `ai-survey-backend`
+- **Framework Preset**: Other
+- **Root Directory**: `backend` (重要！)
+- **Build Command**: 留空（Serverless函数自动构建）
+- **Output Directory**: 留空
+- **Install Command**: `npm install`
+- **Node.js Version**: 18.x
 
-### 步骤3: 配置项目设置
-**Framework Preset**: Next.js
-**Root Directory**: `frontend` (重要！)
-**Build Command**: `npm run build` (自动检测)
-**Output Directory**: `.next` (自动检测)
-**Install Command**: `npm install` (自动检测)
-**Node.js Version**: 18.x (推荐)
+#### 1.3 部署后端
+1. 点击 "Deploy"
+2. 等待部署完成
+3. 记录后端域名（如：`https://ai-survey-backend.vercel.app`）
+
+### 步骤2: 部署前端应用
+
+#### 2.1 创建前端项目
+1. 再次点击 "New Project"
+2. 选择同一个 `baoqj/ai-survey` 仓库
+3. 点击 "Import"
+
+#### 2.2 配置前端项目设置
+- **Project Name**: `ai-survey-frontend`
+- **Framework Preset**: Next.js
+- **Root Directory**: `frontend` (重要！)
+- **Build Command**: `npm run build` (自动检测)
+- **Output Directory**: `.next` (自动检测)
+- **Install Command**: `npm install` (自动检测)
+- **Node.js Version**: 18.x
+
+#### 2.3 更新前端配置
+在部署前端之前，需要更新 `frontend/vercel.json` 中的后端API地址：
+```json
+{
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://your-backend-domain.vercel.app/api/$1"
+    }
+  ]
+}
+```
 
 ### 步骤4: 配置环境变量
 在Vercel项目设置中添加以下环境变量：
