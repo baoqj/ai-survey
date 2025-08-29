@@ -1,0 +1,23 @@
+{
+  "name": "@survey/shared",
+  "version": "1.0.0",
+  "description": "智问数研共享类型和工具库",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rimraf dist",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2",
+    "rimraf": "^5.0.5"
+  },
+  "files": [
+    "dist"
+  ]
+}

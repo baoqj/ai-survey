@@ -1,0 +1,60 @@
+{
+  "name": "zhiwen-shuyuan-monorepo",
+  "version": "1.0.0",
+  "description": "智问数研 - AI智能问卷调研系统",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build": "npm run build:shared && npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "build:shared": "cd shared && npm run build",
+    "start": "npm run start:frontend",
+    "start:frontend": "cd frontend && npm run start",
+    "start:backend": "cd backend && npm run start",
+    "lint": "npm run lint:frontend && npm run lint:backend",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint:backend": "cd backend && npm run lint",
+    "type-check": "npm run type-check:frontend && npm run type-check:backend",
+    "type-check:frontend": "cd frontend && npm run type-check",
+    "type-check:backend": "cd backend && npm run type-check",
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "cd frontend && npm run test",
+    "test:backend": "cd backend && npm run test",
+    "clean": "rimraf node_modules frontend/node_modules backend/node_modules shared/node_modules frontend/.next backend/dist shared/dist",
+    "postinstall": "npm run build:shared"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "rimraf": "^5.0.5",
+    "@types/node": "^20.8.0",
+    "typescript": "^5.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/baoqj/ai-survey.git"
+  },
+  "keywords": [
+    "智问数研",
+    "问卷调研",
+    "AI分析",
+    "数据分析",
+    "智能问卷",
+    "调研平台",
+    "nextjs",
+    "typescript"
+  ],
+  "author": "智问数研团队",
+  "license": "MIT"
+}
